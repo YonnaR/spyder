@@ -4,20 +4,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"go_spider/core/common/page"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/YonnaR/go-asciibot"
-	"gopkg.in/mgo.v2/bson"
 )
 
+/*
+TripAdvisorProcessor structure data reception and navigation between the in crawlling pages
+==================================================================
+	@startURI is for the CLI, define start crawling uri
+	@nextURI is used for navigation between pages
+	@output is the desired output for the data
+	@data is the data collected during process
+==================================================================
+*/
 type TripAdvisorProcessor struct {
 	startURI string
 	nextURI  string
 	output   string
-	thread   int
+	data     []string
 }
 
 /*CModel is a commentary model structure */
@@ -40,17 +49,22 @@ type CHModel struct {
 }
 
 /*NewTripAdvisorProcessor return new instance of TA processor  */
-func NewTripAdvisorProcessor(url string, output string, thread int) *TripAdvisorProcessor {
+func NewTripAdvisorProcessor(url string, output string) *TripAdvisorProcessor {
 	return &TripAdvisorProcessor{
 		startURI: url,
 		output:   output,
-		thread:   thread,
 	}
 }
 
 /*Process is life cycle spider
-Parse html dom here and record the parse result that we want to Page.
-Package goquery (http://godoc.org/github.com/PuerkitoBio/goquery) is used to parse html.*/
+==================================================================
+	=>Get first page
+	=>Parse html dom
+	=>Check pagination for get other pages
+	=>Collect data and store it to processor array
+Package goquery is used to parse html.
+==================================================================
+*/
 func (t *TripAdvisorProcessor) Process(p *page.Page) {
 
 	if p.IsSucc() {
@@ -58,31 +72,40 @@ func (t *TripAdvisorProcessor) Process(p *page.Page) {
 		page := query.Find(".ui_pagination")
 		cPage := t.nextURI
 
+		getNextPage(page, t)
+		if cPage != t.nextURI && t.nextURI != "" {
+			p.AddTargetRequest("https://www.tripadvisor.fr"+t.nextURI, "html")
+		} else {
+			result := p.GetPageItems().GetAll()
+			for k, i := range result {
+				fmt.Println(k, i)
+
+			}
+		}
+
 		if strings.Contains(t.startURI, "Restaurant") {
 			review := query.Find(".review-container")
 			review.Each(func(i int, s *goquery.Selection) {
-				fmt.Println(s.Text())
 				c := restaurantParser(s)
-				d, _ := json.Marshal(c)
-				p.AddField(bson.NewObjectId().String(), string(d))
+				d, _ := json.MarshalIndent(c, "", "")
+				t.AddToPipeLine(string(d))
+				//p.AddField(bson.NewObjectId().String(), string(d))
 			})
-			getNextPage(page, t)
 
 		}
 
 		if strings.Contains(t.startURI, "Hotel") {
+			getNextPage(page, t)
 			review := query.Find(".hotels-hotel-review-community-content-Card__ui_card--3kTH_")
 			review.Each(func(i int, s *goquery.Selection) {
 				c := hotelParser(s)
-				d, _ := json.Marshal(c)
-				p.AddField(bson.NewObjectId().String(), string(d))
+				d, _ := json.MarshalIndent(c, "", "")
+				//p.AddField(bson.NewObjectId().String(), string(d))
+				t.AddToPipeLine(string(d))
+				//t.data = append(t.data, string(d))
+
 			})
-			getNextPage(page, t)
 
-		}
-
-		if cPage != t.nextURI && t.nextURI != "" {
-			p.AddTargetRequest("https://www.tripadvisor.fr"+t.nextURI, "html")
 		}
 
 	} else {
@@ -92,9 +115,34 @@ func (t *TripAdvisorProcessor) Process(p *page.Page) {
 
 }
 
-/*Finish is last task of spider function */
+/*
+Finish is last task of spider function
+==================================================================
+	Write data on file when process is end
+	send data?
+	recup and show log?
+
+==================================================================
+*/
 func (t *TripAdvisorProcessor) Finish() {
+	//fmt.Println(t.data[1])
+	file, err := json.MarshalIndent(t.data, "", " ")
+	if err != nil {
+		fmt.Println("err : ", err.Error())
+	}
+	fmt.Println(len(t.data))
+	werr := ioutil.WriteFile(t.output, file, 0644)
+	if werr != nil {
+		fmt.Println("err : ", err.Error())
+	}
+
 	fmt.Printf(asciibot.Random() + "\n\r Spidering ended \n")
+}
+
+func (t *TripAdvisorProcessor) AddToPipeLine(item string) {
+	//fmt.Println("current item : ", item)
+	t.data = append(t.data, item)
+	fmt.Println("Item created")
 }
 
 func checkConnection() (ok bool) {

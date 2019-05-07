@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -42,7 +40,7 @@ func hotelParser(s *goquery.Selection) CHModel {
 	image := s.Find("img")
 	book := s.Find(".hotels-review-list-parts-EventDate__event_date--CRXs4").Text()
 
-	fmt.Println("bookDate :", book)
+	//fmt.Println("bookDate :", book)
 	nCom := CHModel{
 		Author:     auth,
 		Created:    created,
