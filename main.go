@@ -16,7 +16,6 @@ var (
 	========================================================
 	@uri is crawler start uri
 	@out is output file (not required, default is data.json)
-	========================================================
 */
 func init() {
 
@@ -35,7 +34,6 @@ func init() {
 	Check connection
 	Create new processor for spidering
 	Launch engine
-==================================================================
 */
 func main() {
 

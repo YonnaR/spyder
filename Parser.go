@@ -4,6 +4,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+/*
+RestaurantParser is parsing engine for restaurant pages
+*/
 func restaurantParser(s *goquery.Selection) CModel {
 
 	/* Parse website informations */
@@ -13,6 +16,7 @@ func restaurantParser(s *goquery.Selection) CModel {
 	title := s.Find(".noQuotes").Text()
 	image := s.Find(".centeredImg")
 
+	/* Create new data object */
 	nCom := CModel{
 		Author:     auth,
 		Created:    created,
